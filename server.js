@@ -4,6 +4,8 @@ const http = require('http');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(cors());
+
 // Servir archivos estáticos (HTML, JS, CSS si los tienes)
 app.use(express.static('public'));
 
