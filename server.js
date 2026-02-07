@@ -1,38 +1,50 @@
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
-
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// ================================
+// 🔴 CAMBIA SOLO ESTO CUANDO QUIERAS
+// ================================
+const RADIO_IP = '78.129.241.110';
+const RADIO_PORT = 6240;
+const RADIO_PATH = '/stream';
+// ================================
 
-// Servir archivos estáticos (HTML, JS, CSS si los tienes)
+app.use(cors());
 app.use(express.static('public'));
 
-// Proxy para el stream de radio
+// PROXY DEL STREAM
 app.get('/stream', (req, res) => {
-    const streamUrl = 'http://78.129.241.110:6240/stream';
+    const streamUrl = `http://${RADIO_IP}:${RADIO_PORT}${RADIO_PATH}`;
+
+    console.log('Proxy a:', streamUrl);
 
     http.get(streamUrl, (streamRes) => {
-        // Copiar headers importantes
         res.setHeader('Content-Type', 'audio/mpeg');
         res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
 
-        // Redirigir datos del stream al cliente
         streamRes.pipe(res);
     }).on('error', (err) => {
-        console.error('Error en proxy del stream:', err);
-        res.status(500).send('Error al cargar el stream');
+        console.error('Error del stream:', err.message);
+        res.status(500).end('Error al cargar el stream');
     });
 });
 
-// Ruta raíz para probar
+// INDEX
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// INICIAR SERVIDOR
 app.listen(PORT, () => {
+    console.log('===============================');
+    console.log('Proxy de radio ACTIVO');
     console.log(`Servidor escuchando en puerto ${PORT}`);
+    console.log(`Radio real: http://${RADIO_IP}:${RADIO_PORT}${RADIO_PATH}`);
+    console.log('===============================');
 });
