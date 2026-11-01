@@ -9,8 +9,8 @@ const PORT = process.env.PORT || 3000;
 // ================================
 // 🔴 CAMBIA SOLO ESTO CUANDO QUIERAS
 // ================================
-const RADIO_IP = '78.129.241.110';
-const RADIO_PORT = 6240;
+const RADIO_IP = '82.145.41.8';
+const RADIO_PORT = 10194;
 const RADIO_PATH = '/stream';
 // ================================
 
