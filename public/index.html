@@ -9,24 +9,40 @@
 <body>
     <h1>Reproductor de Radio Proxy</h1>
 
-    <!-- Botón para iniciar reproducción -->
     <button id="playButton">Iniciar Reproducción</button>
 
-    <!-- Audio oculto inicialmente -->
-    <audio id="radioPlayer" controls style="display:none">
-        <source src="/stream" type="audio/mpeg">
-        Tu navegador no soporta audio en streaming.
-    </audio>
+    <audio id="radioPlayer" controls style="display:none"></audio>
 
     <script>
         const playButton = document.getElementById('playButton');
         const radioPlayer = document.getElementById('radioPlayer');
 
-        playButton.addEventListener('click', () => {
+        function startStream() {
+            // Añadimos un parámetro de tiempo (?t=...) para saltarnos la caché del navegador
+            radioPlayer.src = '/stream?t=' + Date.now();
             radioPlayer.style.display = 'block';
+
             radioPlayer.play().catch(err => {
-                console.error('No se pudo reproducir:', err);
+                console.error('Error o interacción requerida para reproducir:', err);
             });
+        }
+
+        playButton.addEventListener('click', () => {
+            startStream();
+        });
+
+        // 🔴 RECONEXIÓN AUTOMÁTICA CUANDO EL STREAM SE CORTE
+        radioPlayer.addEventListener('error', () => {
+            console.warn('El stream se interrumpió. Reconectando en 3 segundos...');
+            setTimeout(() => {
+                startStream();
+            }, 3000);
+        });
+
+        // 🔴 SI EL BUFFER SE ATASCA POR INACTIVIDAD
+        radioPlayer.addEventListener('stalled', () => {
+            console.warn('Transmisión detenida. Forzando reconexión...');
+            startStream();
         });
     </script>
 </body>

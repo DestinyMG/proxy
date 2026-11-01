@@ -19,19 +19,54 @@ app.use(express.static('public'));
 
 // PROXY DEL STREAM
 app.get('/stream', (req, res) => {
-    const streamUrl = `http://${RADIO_IP}:${RADIO_PORT}${RADIO_PATH}`;
+    // 1. Evitar que Node.js tumbe la conexión por inactividad/timeout
+    req.setTimeout(0);
+    res.setTimeout(0);
 
+    const streamUrl = `http://${RADIO_IP}:${RADIO_PORT}${RADIO_PATH}`;
     console.log('Proxy a:', streamUrl);
 
-    http.get(streamUrl, (streamRes) => {
+    // 2. Configurar petición con User-Agent de reproductor real
+    const options = {
+        hostname: RADIO_IP,
+        port: RADIO_PORT,
+        path: RADIO_PATH,
+        method: 'GET',
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) VLC/3.0.18',
+            'Accept': '*/*'
+        }
+    };
+
+    const clientReq = http.get(options, (streamRes) => {
+        if (streamRes.statusCode !== 200) {
+            console.error(`Respuesta con status code: ${streamRes.statusCode}`);
+            if (!res.headersSent) {
+                res.status(streamRes.statusCode).end('Error en la fuente de radio');
+            }
+            return;
+        }
+
         res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.setHeader('Connection', 'keep-alive');
 
+        // Transmitir flujo de datos
         streamRes.pipe(res);
-    }).on('error', (err) => {
+
+        // 3. Destruir la conexión con la radio si el usuario cierra el reproductor
+        req.on('close', () => {
+            streamRes.destroy();
+        });
+    });
+
+    clientReq.on('error', (err) => {
         console.error('Error del stream:', err.message);
-        res.status(500).end('Error al cargar el stream');
+        if (!res.headersSent) {
+            res.status(500).end('Error al cargar el stream');
+        }
     });
 });
 
