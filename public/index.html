@@ -9,39 +9,53 @@
 <body>
     <h1>Reproductor de Radio Proxy</h1>
 
+    <!-- Botón para iniciar reproducción -->
     <button id="playButton">Iniciar Reproducción</button>
 
+    <!-- Audio oculto inicialmente -->
     <audio id="radioPlayer" controls style="display:none"></audio>
 
     <script>
         const playButton = document.getElementById('playButton');
         const radioPlayer = document.getElementById('radioPlayer');
+        let keepAliveInterval = null;
 
         function startStream() {
-            // Añadimos un parámetro de tiempo (?t=...) para saltarnos la caché del navegador
+            // Asigna la fuente con timestamp para saltar la caché
             radioPlayer.src = '/stream?t=' + Date.now();
             radioPlayer.style.display = 'block';
 
-            radioPlayer.play().catch(err => {
-                console.error('Error o interacción requerida para reproducir:', err);
+            radioPlayer.play().then(() => {
+                iniciarPingPeriodico();
+            }).catch(err => {
+                console.error('No se pudo reproducir:', err);
             });
+        }
+
+        // Petición GET cada 5 minutos (300,000 ms) para mantener viva la sesión/proxy
+        function iniciarPingPeriodico() {
+            if (keepAliveInterval) clearInterval(keepAliveInterval);
+
+            keepAliveInterval = setInterval(() => {
+                console.log('Ejecutando GET de verificación (cada 5 min)...');
+                fetch('/stream?ping=' + Date.now(), { method: 'GET', cache: 'no-store' })
+                    .then(res => console.log('Keep-alive status:', res.status))
+                    .catch(err => console.warn('Error en el GET de verificación:', err));
+            }, 300000); // 5 minutos = 300,000 ms
         }
 
         playButton.addEventListener('click', () => {
             startStream();
         });
 
-        // 🔴 RECONEXIÓN AUTOMÁTICA CUANDO EL STREAM SE CORTE
+        // Auto-reconexión si el stream se interrumpe
         radioPlayer.addEventListener('error', () => {
-            console.warn('El stream se interrumpió. Reconectando en 3 segundos...');
-            setTimeout(() => {
-                startStream();
-            }, 3000);
+            console.warn('Stream cortado. Reconectando en 3 segundos...');
+            setTimeout(startStream, 3000);
         });
 
-        // 🔴 SI EL BUFFER SE ATASCA POR INACTIVIDAD
         radioPlayer.addEventListener('stalled', () => {
-            console.warn('Transmisión detenida. Forzando reconexión...');
+            console.warn('Transmisión pausada/atascada. Reconectando...');
             startStream();
         });
     </script>
